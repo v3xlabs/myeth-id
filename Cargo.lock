@@ -1781,6 +1781,7 @@ dependencies = [
  "dotenvy",
  "ethers",
  "hex",
+ "log",
  "serde",
  "tokio",
  "tracing",

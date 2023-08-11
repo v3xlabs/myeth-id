@@ -10,6 +10,7 @@ axum = "0.6.20"
 dotenvy = "0.15.7"
 ethers = "2.0.8"
 hex = "0.4.3"
+log = "0.4.19"
 serde = "1.0.183"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.37"

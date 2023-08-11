@@ -53,7 +53,7 @@ async fn main() {
 async fn root() -> &'static str {
     info!("x");
 
-    "Hello, World!"
+    "Hello, World!!"
 }
 
 async fn create_user(
