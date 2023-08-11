@@ -1,9 +1,8 @@
 FROM alpine:latest
 
 RUN apk update --quiet \
-&& apk add -q --no-cache libgcc tini curl
+&& apk add -q --no-cache libgcc curl
 
 COPY target/release/myeth-id /bin/myeth-id
-RUN ln -s /bin/myeth-id /myeth-id
 
-ENTRYPOINT ["myeth-id"]
+ENTRYPOINT ["/bin/myeth-id"]
