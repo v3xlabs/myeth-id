@@ -5,12 +5,12 @@ RUN         apt-get update \
             && apt-get clean \
             && rm -rf /var/lib/apt/lists/*
 
-ENV                 TINI_VERSION v0.19.0
+ENV         TINI_VERSION v0.19.0
 
 ADD         https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static /tini
 RUN         chmod +x /tini
 
-COPY        target/x86_64-unknown-linux-musl/release/myeth-id /bin/myeth-id
+COPY        target/release/myeth-id /bin/myeth-id
 
 ENTRYPOINT  ["/tini", "--"]
 CMD         ["/bin/myeth-id"]
