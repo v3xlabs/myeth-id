@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myeth-id
+  namespace: myeth-id
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: myeth-id
+  template:
+    metadata:
+      labels:
+        app: myeth-id
+    spec:
+      containers:
+        - name: myeth-id
+          image: ghcr.io/v3xlabs/myeth-id:9e197c6627bbce638596dff656340bf67421c7c9
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REDIS_URL
+              value: "redis://redis.myeth-id.svc.cluster.local:6379"
+            - name: PRIVATE_KEY
+              value: ""
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 1024Mi
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myeth-id
+  namespace: myeth-id
+  labels:
+    app: myeth-id
+    job: myeth-id
+spec:
+  selector:
+    app: myeth-id
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      name: web
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myeth-id
+  namespace: myeth-id
+  annotations:
+    cert-manager.io/cluster-issuer: le-http
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: myeth.id
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myeth-id
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - myeth.id
+      secretName: tls-myeth-id-ingress-http
