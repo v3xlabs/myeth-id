@@ -23,6 +23,7 @@ use axum::{
     http::StatusCode,
     Json, Router, extract::Path,
 };
+use ethers::abi::{Bytes, ParamType, AbiDecode, FixedBytes};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use std::net::SocketAddr;
@@ -59,14 +60,15 @@ async fn handle_ccip(
     //                      name,
     //                      data
     // )
+    // Using ethers.rs attempt an abi decode
+    let selector = &value[0..10];
 
-    // The string starts with "0x"
-    // the next 4 bytes are the selector
-    let selector = &payload.data[2..10];
-    let name = &payload.data[10..74];
-    let data = &payload.data[74..];
+    let (name, data): (FixedBytes, Bytes) = AbiDecode::decode(
+        // [ParamType::FixedBytes(256), ParamType::Bytes],
+        value[10..].as_bytes(),
+    ).unwrap();
 
-    info!(selector = %selector, name = %name, data = %data, "Decoded payload");
+    info!(selector = ?selector, name = ?name, data = ?data, "Decoded payload");
 
     let user = ResolveCCIPPostResponse { data: "".to_string() };
 

@@ -19,7 +19,7 @@ spec:
         - name: ghcr
       containers:
         - name: myeth-id
-          image: ghcr.io/v3xlabs/myeth-id:5baafff0cd5b61ba1a9bc725fc501c138299bb36
+          image: ghcr.io/v3xlabs/myeth-id:3236572bd4b2272310de58240a4cab8be432a543
           ports:
             - containerPort: 3000
           env:
