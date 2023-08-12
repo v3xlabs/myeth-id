@@ -23,8 +23,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - run: |
-          rustup target add x86_64-unknown-linux-musl
-          cargo build --target=x86_64-unknown-linux-musl --release
+          cargo build --release
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
