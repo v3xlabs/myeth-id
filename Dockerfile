@@ -1,7 +1,7 @@
 FROM        debian:buster-slim
 
 RUN         apt-get update \
-            && apt-get install -y --no-install-recommends ca-certificates libssl-dev \
+            && apt-get install -y --no-install-recommends ca-certificates libssl-dev glibc \
             && apt-get clean \
             && rm -rf /var/lib/apt/lists/*
 
