@@ -15,16 +15,21 @@ spec:
       labels:
         app: myeth-id
     spec:
+      imagePullSecrets:
+        - name: ghcr
       containers:
         - name: myeth-id
-          image: ghcr.io/v3xlabs/myeth-id:9e197c6627bbce638596dff656340bf67421c7c9
+          image: ghcr.io/v3xlabs/myeth-id:5baafff0cd5b61ba1a9bc725fc501c138299bb36
           ports:
             - containerPort: 3000
           env:
             - name: REDIS_URL
               value: "redis://redis.myeth-id.svc.cluster.local:6379"
             - name: PRIVATE_KEY
-              value: ""
+              valueFrom:
+                secretKeyRef:
+                  name: myeth-id
+                  key: PRIVATE_KEY
           resources:
             requests:
               cpu: 1000m

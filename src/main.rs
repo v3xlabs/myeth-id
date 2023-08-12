@@ -29,18 +29,12 @@ use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    // initialize tracing
     tracing_subscriber::fmt::init();
 
-    // build our application with a route
     let app = Router::new()
-        // `GET /` goes to `root`
         .route("/", get(root))
-        // `POST /users` goes to `create_user`
-        .route("/*value", post(create_user));
+        .route("/gateway/:sender", post(handle_ccip));
 
-    // run our app with hyper
-    // `axum::Server` is a re-export of `hyper::Server`
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
@@ -49,18 +43,30 @@ async fn main() {
         .unwrap();
 }
 
-// basic handler that responds with a static string
 async fn root() -> &'static str {
-    info!("x");
-
-    "Hello, World!!"
+    "myeth.id v0.0.1"
 }
 
-async fn create_user(
+async fn handle_ccip(
     Path(value): Path<String>,
     Json(payload): Json<ResolveCCIPPostPayload>,
 ) -> (StatusCode, Json<ResolveCCIPPostResponse>) {
     info!(payload = ?payload, path = %value, "All Endpoint");
+
+    // Decode the payload.data field
+    // It is made using abi.encodeWithSelector(
+    //                      IResolverService.resolve.selector,
+    //                      name,
+    //                      data
+    // )
+
+    // The string starts with "0x"
+    // the next 4 bytes are the selector
+    let selector = &payload.data[2..10];
+    let name = &payload.data[10..74];
+    let data = &payload.data[74..];
+
+    info!(selector = %selector, name = %name, data = %data, "Decoded payload");
 
     let user = ResolveCCIPPostResponse { data: "".to_string() };
 
