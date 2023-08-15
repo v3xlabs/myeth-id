@@ -30,8 +30,8 @@ use ethers::{
     types::{H160, U256},
 };
 use serde::{Deserialize, Serialize};
-use tower_http::cors::CorsLayer;
 use std::{env, net::SocketAddr, str::FromStr};
+use tower_http::cors::CorsLayer;
 use tracing::info;
 
 use crate::resolver::functions::ResolverFunctionCall;
@@ -41,13 +41,14 @@ mod utils;
 
 #[tokio::main]
 async fn main() {
+    dotenvy::dotenv().ok();
+
     tracing_subscriber::fmt::init();
 
     let app = Router::new()
         .route("/", get(root))
-        .route("/gateway/:sender", post(handle_ccip)).layer(
-            CorsLayer::very_permissive()
-        );
+        .route("/gateway/:sender", post(handle_ccip))
+        .layer(CorsLayer::very_permissive());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
@@ -178,7 +179,7 @@ async fn handle_ccip(
         let expires: u64 = 1693140299;
         let expires: U256 = expires.into();
 
-        let payload_data_bytes = hex::decode(request_payload.data).unwrap();
+        let payload_data_bytes = hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
 
         let request_hash = ethers::utils::keccak256(payload_data_bytes).to_vec();
         let result_hash = ethers::utils::keccak256(&result).to_vec();
