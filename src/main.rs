@@ -251,7 +251,7 @@ async fn handle_ccip(
             hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
 
         let request_hash = ethers::utils::keccak256(payload_data_bytes).to_vec();
-        let result_hash = ethers::utils::keccak256(value).to_vec();
+        let result_hash = ethers::utils::keccak256(result).to_vec();
 
         let sender = H160::from_str(&request_payload.sender).unwrap();
 
