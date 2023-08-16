@@ -2,22 +2,30 @@ use ethers::abi::ParamType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolverFunctionCall {
-    Addr(Vec<u8>), // 0x3b3b57de
     // addr(bytes32 node) returns (address)
-    Name(Vec<u8>), // 0x691f3431
+    // 0x3b3b57de
+    Addr(Vec<u8>),
     // name(bytes32 node) returns (string)
-    Abi, // 0x2203ab56
+    // 0x691f3431
+    Name(Vec<u8>),
     // abi(bytes32 node, uint256 contentTypes) returns (uint256, bytes)
-    Text(Vec<u8>, String), // 0x59d1d43c
+    // 0x2203ab56
+    Abi,
     // text(bytes32 node, string key) returns (string)
-    ContentHash, // 0xbc1c58d1
+    // 0x59d1d43c
+    Text(Vec<u8>, String),
     // contenthash(bytes32 node) returns (bytes)
-    InterfaceImplementer, // 0xb8f2bbb4
+    // 0xbc1c58d1
+    ContentHash,
     // interfaceImplementer(bytes32 node, bytes4 interfaceID) returns (address)
-    AddrMultichain(Vec<u8>, u64), // 0xf1cb7e06
+    // 0xb8f2bbb4
+    InterfaceImplementer,
     // addr(bytes32 node, uint256 coinType) returns (bytes)
-    PubKey, // 0xc8690233
-            // pubkey(bytes32 node) returns (bytes32, bytes32)
+    // 0xf1cb7e06
+    AddrMultichain(Vec<u8>, u64),
+    // pubkey(bytes32 node) returns (bytes32, bytes32)
+    // 0xc8690233
+    PubKey,
 }
 
 impl TryFrom<&[u8]> for ResolverFunctionCall {
@@ -41,7 +49,7 @@ impl TryFrom<&[u8]> for ResolverFunctionCall {
                 let namehash = result[0].clone().into_fixed_bytes().unwrap();
 
                 Ok(ResolverFunctionCall::Name(namehash))
-            },
+            }
             "2203ab56" => Ok(ResolverFunctionCall::Abi),
             "59d1d43c" => {
                 let result =
