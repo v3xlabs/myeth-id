@@ -102,17 +102,14 @@ fn magic_data(value: Vec<u8>, sender: &H160, request_payload: String) -> String 
     let wallet = LocalWallet::from_str(env::var("PRIVATE_KEY").unwrap().as_str()).unwrap();
     let signature: ethers::types::Signature = wallet.sign_hash(message_hash.into()).unwrap();
 
-    let signature_r = format!("{:02x}", signature.r);
-    let signature_s = format!("{:02x}", signature.s);
-    let signature_v = format!("{:02x}", signature.v);
+    // these need padleft of 0 if less then 32 bytes
+    let signature_r = signature.r.encode();
+    let signature_s = signature.s.encode();
+    let signature_v = vec![signature.v.try_into().unwrap()];
 
     info!(signature_r = ?signature_r, signature_s = ?signature_s, signature_v = ?signature_v, "Signature");
 
-    let signature = hex::decode(format!("{}{}{}", signature_r, signature_s, signature_v))
-        .unwrap()
-        .to_vec();
-    // let y_parity_and_s = compact_y_parity_and_s(&signature).unwrap();
-    // let signature = [signature.r.encode(), y_parity_and_s].concat();
+    let signature = [signature_r, signature_s, signature_v].concat();
 
     let data: Vec<Token> = vec![
         Token::Bytes(result),
@@ -260,7 +257,9 @@ async fn handle_ccip(
         info!(namehash = ?namehash, record = ?record, "Namehash & Record");
 
         let data = magic_data(
-            "Hello World".encode(),
+            ethers::abi::encode(&[Token::String(
+                "Hello World".to_string(),
+            )]),
             &H160::from_str(request_payload.sender.as_str()).unwrap(),
             request_payload.data,
         );
