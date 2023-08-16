@@ -173,7 +173,9 @@ async fn handle_ccip(
         // result, valid until, signature_data
 
         let address = H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap();
-        let result = ethers::abi::encode_packed(&[Token::Address(address)]).unwrap();
+        // Result is the address but leftpadded with zeroes to 32 bytes in length
+        let result = address.encode();
+        info!(result = ?result, "Result");
 
         let expires: u64 = 1693140299;
         let expires: U256 = expires.into();
@@ -182,7 +184,7 @@ async fn handle_ccip(
             hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
 
         let request_hash = ethers::utils::keccak256(payload_data_bytes).to_vec();
-        let result_hash = ethers::utils::keccak256(&result).to_vec();
+        let result_hash = ethers::utils::keccak256(address).to_vec();
 
         let sender = H160::from_str(&request_payload.sender).unwrap();
 
