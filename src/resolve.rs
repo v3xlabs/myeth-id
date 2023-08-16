@@ -151,6 +151,8 @@ pub fn resolve(
                     "My name is {} and this is myeth.id",
                     labelname
                 ))]),
+                "avatar" => Ok([Token::String("https://media.tenor.com/SSY2V0RrU3IAAAAM/rick-roll-rick-rolled.gif".to_string())]),
+                "url" => Ok([Token::String("https://myeth.id".to_string())]),
                 _ => Ok([Token::String("Hello World".to_string())]),
             }
         }
