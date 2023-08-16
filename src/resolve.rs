@@ -146,15 +146,17 @@ pub fn resolve(
         }
         ResolverFunctionCall::Text(namehash, record) => {
             // info!(namehash = ?namehash, record = ?record, "Namehash & Record");
-            match record.as_str() {
-                "description" => Ok([Token::String(format!(
-                    "My name is {} and this is myeth.id",
-                    labelname
-                ))]),
-                "avatar" => Ok([Token::String("https://media.tenor.com/SSY2V0RrU3IAAAAM/rick-roll-rick-rolled.gif".to_string())]),
-                "url" => Ok([Token::String("https://myeth.id".to_string())]),
-                _ => Ok([Token::String("Hello World".to_string())]),
-            }
+            Ok([Token::String(match record.as_str() {
+                "description" => Ok(format!("My name is {} and this is myeth.id", labelname)),
+                "avatar" => Ok(
+                    "https://media.tenor.com/SSY2V0RrU3IAAAAM/rick-roll-rick-rolled.gif"
+                        .to_string(),
+                ),
+                "url" => Ok("https://myeth.id".to_string()),
+                "name" => Ok("myeth.id".to_string()),
+                "location" => Ok("Location".to_string()),
+                _ => Ok("Hello World".to_string()),
+            }?)])
         }
         ResolverFunctionCall::AddrMultichain(namehash, coin_type) => {
             // Ok([Token::String("Hello World".to_string())])

@@ -4,7 +4,7 @@ use ethers::abi::ParamType;
 pub enum ResolverFunctionCall {
     Addr(Vec<u8>), // 0x3b3b57de
     // addr(bytes32 node) returns (address)
-    Name, // 0x691f3431
+    Name(Vec<u8>), // 0x691f3431
     // name(bytes32 node) returns (string)
     Abi, // 0x2203ab56
     // abi(bytes32 node, uint256 contentTypes) returns (uint256, bytes)
@@ -36,7 +36,12 @@ impl TryFrom<&[u8]> for ResolverFunctionCall {
 
                 Ok(ResolverFunctionCall::Addr(namehash))
             }
-            "691f3431" => Ok(ResolverFunctionCall::Name),
+            "691f3431" => {
+                let result = ethers::abi::decode(&[ParamType::FixedBytes(32)], payload).unwrap();
+                let namehash = result[0].clone().into_fixed_bytes().unwrap();
+
+                Ok(ResolverFunctionCall::Name(namehash))
+            },
             "2203ab56" => Ok(ResolverFunctionCall::Abi),
             "59d1d43c" => {
                 let result =
