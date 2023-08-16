@@ -27,7 +27,8 @@ use axum::{
 use ethers::{
     abi::{AbiEncode, ParamType, Token},
     signers::LocalWallet,
-    types::{H160, U256},
+    types::{Signature, H160, U256, U64},
+    utils::keccak256,
 };
 use serde::{Deserialize, Serialize};
 use std::{env, net::SocketAddr, str::FromStr};
@@ -58,8 +59,73 @@ async fn main() {
         .unwrap();
 }
 
+/// Compute `yParityAndS` from a signature
+///
+/// EIP-2098: <https://eips.ethereum.org/EIPS/eip-2098>
+pub fn compact_y_parity_and_s(sig: &Signature) -> Result<Vec<u8>, ()> {
+    let mut y_parity_and_s = sig.s.encode();
+    if sig.recovery_id().unwrap().is_y_odd() {
+        y_parity_and_s[0] |= 0x80;
+    }
+    Ok(y_parity_and_s.to_vec())
+}
+
 async fn root() -> &'static str {
     "myeth.id v0.0.1"
+}
+
+fn magic_data(value: Vec<u8>, sender: &H160, request_payload: String) -> String {
+    let result = value;
+    info!(result = ?result, "Result");
+
+    let expires: u64 = 1693140299;
+
+    let request_hash = keccak256(&request_payload).to_vec();
+    let result_hash = keccak256(&result).to_vec();
+
+    info!("Sender: {:?}", sender);
+    info!("Expires: {:?}", expires);
+    info!("Request Hash: {:?}", request_hash);
+    info!("Result Hash: {:?}", result_hash);
+
+    // Hash and sign the response
+    let encoded = ethers::abi::encode_packed(&[
+        Token::Uint(U256::from(0x1900)),
+        Token::Address(*sender),
+        Token::FixedBytes(U64::from(expires).0[0].to_be_bytes().to_vec()),
+        Token::FixedBytes(request_hash),
+        Token::FixedBytes(result_hash),
+    ])
+    .unwrap();
+    let message_hash = keccak256(encoded);
+
+    let wallet = LocalWallet::from_str(env::var("PRIVATE_KEY").unwrap().as_str()).unwrap();
+    let signature: ethers::types::Signature = wallet.sign_hash(message_hash.into()).unwrap();
+
+    let signature_r = format!("{:02x}", signature.r);
+    let signature_s = format!("{:02x}", signature.s);
+    let signature_v = format!("{:02x}", signature.v);
+
+    info!(signature_r = ?signature_r, signature_s = ?signature_s, signature_v = ?signature_v, "Signature");
+
+    let signature = hex::decode(format!("{}{}{}", signature_r, signature_s, signature_v))
+        .unwrap()
+        .to_vec();
+    // let y_parity_and_s = compact_y_parity_and_s(&signature).unwrap();
+    // let signature = [signature.r.encode(), y_parity_and_s].concat();
+
+    let data: Vec<Token> = vec![
+        Token::Bytes(result),
+        Token::Uint(U256::from(expires)),
+        Token::Bytes(signature),
+    ];
+
+    let data = ethers::abi::encode(data.as_slice());
+
+    let data = hex::encode(data);
+    let data = format!("0x{}", data);
+
+    data
 }
 
 async fn handle_ccip(
@@ -172,60 +238,13 @@ async fn handle_ccip(
         // signature_data = hexConcat([sig.r, sig._vs])
         // result, valid until, signature_data
 
-        let address = H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap();
-        // Result is the address but leftpadded with zeroes to 32 bytes in length
-        let result = address.encode();
-        info!(result = ?result, "Result");
-
-        let expires: u64 = 1693140299;
-        let expires: U256 = expires.into();
-
-        let payload_data_bytes =
-            hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
-
-        let request_hash = ethers::utils::keccak256(payload_data_bytes).to_vec();
-        let result_hash = ethers::utils::keccak256(address).to_vec();
-
-        let sender = H160::from_str(&request_payload.sender).unwrap();
-
-        let payload_hash = ethers::abi::encode_packed(
-            vec![
-                Token::Bytes(hex::decode("1900").unwrap()),
-                Token::Address(sender),
-                Token::Uint(expires),
-                Token::Bytes(request_hash),
-                Token::Bytes(result_hash),
-            ]
-            .as_slice(),
-        )
-        .unwrap();
-
-        let payload_hash = ethers::utils::keccak256(payload_hash);
-
-        let wallet = LocalWallet::from_str(env::var("PRIVATE_KEY").unwrap().as_str()).unwrap();
-        let signature = wallet.sign_hash(payload_hash.into()).unwrap();
-
-        // TODO: Figure out hexConcat, (to_string atm)
-        let signature_r = format!("{:02x}", signature.r);
-        let signature_s = format!("{:02x}", signature.s);
-        let signature_v = format!("{:02x}", signature.v);
-
-        info!(signature_r = ?signature_r, signature_s = ?signature_s, signature_v = ?signature_v, "Signature");
-
-        let signature = hex::decode(format!("{}{}{}", signature_r, signature_s, signature_v))
-            .unwrap()
-            .to_vec();
-
-        let data = vec![
-            Token::Bytes(result),
-            Token::Uint(expires),
-            Token::Bytes(signature),
-        ];
-
-        let data = ethers::abi::encode(data.as_slice());
-
-        let data = hex::encode(data);
-        let data = format!("0x{}", data);
+        let data = magic_data(
+            ethers::abi::encode(&[Token::Address(
+                H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap(),
+            )]),
+            &H160::from_str(request_payload.sender.as_str()).unwrap(),
+            request_payload.data,
+        );
 
         return (StatusCode::OK, Json(ResolveCCIPPostResponse { data }));
     }
@@ -233,66 +252,18 @@ async fn handle_ccip(
     if call == ResolverFunctionCall::text {
         info!("CONTENT Call");
 
-        let result = ethers::abi::decode(&[ParamType::FixedBytes(32), ParamType::String], &payload).unwrap();
+        let result =
+            ethers::abi::decode(&[ParamType::FixedBytes(32), ParamType::String], &payload).unwrap();
         let namehash = result[0].clone().into_fixed_bytes().unwrap();
         let record = result[1].clone().into_string().unwrap();
 
         info!(namehash = ?namehash, record = ?record, "Namehash & Record");
 
-        let value = "Hello World";
-        // Result is the address but leftpadded with zeroes to 32 bytes in length
-        let result = value.encode();
-        info!(result = ?result, "Result");
-
-        let expires: u64 = 1693140299;
-        let expires: U256 = expires.into();
-
-        let payload_data_bytes =
-            hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
-
-        let request_hash = ethers::utils::keccak256(payload_data_bytes).to_vec();
-        let result_hash = ethers::utils::keccak256(&result).to_vec();
-
-        let sender = H160::from_str(&request_payload.sender).unwrap();
-
-        let payload_hash = ethers::abi::encode_packed(
-            vec![
-                Token::Bytes(hex::decode("1900").unwrap()),
-                Token::Address(sender),
-                Token::Uint(expires),
-                Token::Bytes(request_hash),
-                Token::Bytes(result_hash),
-            ]
-            .as_slice(),
-        )
-        .unwrap();
-
-        let payload_hash = ethers::utils::keccak256(payload_hash);
-
-        let wallet = LocalWallet::from_str(env::var("PRIVATE_KEY").unwrap().as_str()).unwrap();
-        let signature = wallet.sign_hash(payload_hash.into()).unwrap();
-
-        // TODO: Figure out hexConcat, (to_string atm)
-        let signature_r = format!("{:02x}", signature.r);
-        let signature_s = format!("{:02x}", signature.s);
-        let signature_v = format!("{:02x}", signature.v);
-
-        info!(signature_r = ?signature_r, signature_s = ?signature_s, signature_v = ?signature_v, "Signature");
-
-        let signature = hex::decode(format!("{}{}{}", signature_r, signature_s, signature_v))
-            .unwrap()
-            .to_vec();
-
-        let data = vec![
-            Token::Bytes(result),
-            Token::Uint(expires),
-            Token::Bytes(signature),
-        ];
-
-        let data = ethers::abi::encode(data.as_slice());
-
-        let data = hex::encode(data);
-        let data = format!("0x{}", data);
+        let data = magic_data(
+            "Hello World".encode(),
+            &H160::from_str(request_payload.sender.as_str()).unwrap(),
+            request_payload.data,
+        );
 
         return (StatusCode::OK, Json(ResolveCCIPPostResponse { data }));
     }
