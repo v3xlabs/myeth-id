@@ -173,7 +173,7 @@ async fn handle_ccip(
         // result, valid until, signature_data
 
         let address = H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap();
-        let result = ethers::abi::encode(&[Token::Address(address)]);
+        let result = ethers::abi::encode_packed(&[Token::Address(address)]).unwrap();
 
         let expires: u64 = 1693140299;
         let expires: U256 = expires.into();
