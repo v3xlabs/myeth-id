@@ -232,25 +232,73 @@ async fn handle_ccip(
 
     if call == ResolverFunctionCall::text {
         info!("CONTENT Call");
+
+        let result = ethers::abi::decode(&[ParamType::FixedBytes(32), ParamType::String], &payload).unwrap();
+        let namehash = result[0].clone().into_fixed_bytes().unwrap();
+        let record = result[1].clone().into_string().unwrap();
+
+        info!(namehash = ?namehash, record = ?record, "Namehash & Record");
+
+        let value = "Hello World";
+        // Result is the address but leftpadded with zeroes to 32 bytes in length
+        let result = value.encode();
+        info!(result = ?result, "Result");
+
+        let expires: u64 = 1693140299;
+        let expires: U256 = expires.into();
+
+        let payload_data_bytes =
+            hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
+
+        let request_hash = ethers::utils::keccak256(payload_data_bytes).to_vec();
+        let result_hash = ethers::utils::keccak256(value).to_vec();
+
+        let sender = H160::from_str(&request_payload.sender).unwrap();
+
+        let payload_hash = ethers::abi::encode_packed(
+            vec![
+                Token::Bytes(hex::decode("1900").unwrap()),
+                Token::Address(sender),
+                Token::Uint(expires),
+                Token::Bytes(request_hash),
+                Token::Bytes(result_hash),
+            ]
+            .as_slice(),
+        )
+        .unwrap();
+
+        let payload_hash = ethers::utils::keccak256(payload_hash);
+
+        let wallet = LocalWallet::from_str(env::var("PRIVATE_KEY").unwrap().as_str()).unwrap();
+        let signature = wallet.sign_hash(payload_hash.into()).unwrap();
+
+        // TODO: Figure out hexConcat, (to_string atm)
+        let signature_r = format!("{:02x}", signature.r);
+        let signature_s = format!("{:02x}", signature.s);
+        let signature_v = format!("{:02x}", signature.v);
+
+        info!(signature_r = ?signature_r, signature_s = ?signature_s, signature_v = ?signature_v, "Signature");
+
+        let signature = hex::decode(format!("{}{}{}", signature_r, signature_s, signature_v))
+            .unwrap()
+            .to_vec();
+
+        let data = vec![
+            Token::Bytes(result),
+            Token::Uint(expires),
+            Token::Bytes(signature),
+        ];
+
+        let data = ethers::abi::encode(data.as_slice());
+
+        let data = hex::encode(data);
+        let data = format!("0x{}", data);
+
+        return (StatusCode::OK, Json(ResolveCCIPPostResponse { data }));
     }
 
-    // let function_selector = String::from_utf8_lossy(function_selector.into());
-
-    // info!(function_selector = ?function_selector, "Function selector");
-
-    // let vals = ethers::abi::decode(
-    //     vec![ParamType::FixedBytes(4), ParamType::FixedBytes(10), ParamType::Bytes].as_slice(),
-    //     decoded_hex.as_slice(),
-    // ).unwrap();
-
-    // let selector = vals[0].clone().into_fixed_bytes().unwrap();
-    // let name = vals[1].clone().into_fixed_bytes().unwrap();
-    // let data = vals[2].clone().into_bytes().unwrap();
-
-    // info!(selector = ?selector, name = ?name, data = ?data, "Decoded payload");
-
     let user = ResolveCCIPPostResponse {
-        data: "".to_string(),
+        data: "0x".to_string(),
     };
 
     (StatusCode::CREATED, Json(user))
