@@ -76,11 +76,16 @@ async fn root() -> &'static str {
 
 fn magic_data(value: Vec<u8>, sender: &H160, request_payload: String) -> String {
     let result = value;
+    let result_as_utf8_str = hex::encode(&result);
+
     info!(result = ?result, "Result");
+    info!(result_as_utf8_str = ?result_as_utf8_str, "Result as UTF8 Str");
+    let request_payload = hex::decode(request_payload.trim_start_matches("0x")).unwrap();
+    info!(request_payload = ?request_payload, "Request Payload");
 
     let expires: u64 = 1693140299;
 
-    let request_hash = keccak256(&request_payload).to_vec();
+    let request_hash = keccak256(request_payload).to_vec();
     let result_hash = keccak256(&result).to_vec();
 
     info!("Sender: {:?}", sender);
