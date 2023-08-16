@@ -125,6 +125,12 @@ pub fn resolve(
 
     info!(name = ?name, "Decoded name");
 
+    let labelname = name
+        .split(".")
+        .next()
+        .ok_or(ResolveError::DNSDecode())?
+        .to_string();
+
     // This payload contains an abi encoded with selector payload, the first few bytes include the function selector
     let rest_of_the_data = result[1].clone().into_bytes().unwrap();
 
@@ -132,19 +138,25 @@ pub fn resolve(
 
     let result = match call {
         ResolverFunctionCall::Addr(namehash) => {
-            info!(namehash = ?namehash, "Namehash");
+            // info!(namehash = ?namehash, "Namehash");
 
             let reply = H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap();
 
             Ok([Token::Address(reply)])
         }
         ResolverFunctionCall::Text(namehash, record) => {
-            info!(namehash = ?namehash, record = ?record, "Namehash & Record");
-
-            Ok([Token::String("Hello World".to_string())])
+            // info!(namehash = ?namehash, record = ?record, "Namehash & Record");
+            match record.as_str() {
+                "description" => Ok([Token::String(format!(
+                    "My name is {} and this is myeth.id",
+                    labelname
+                ))]),
+                _ => Ok([Token::String("Hello World".to_string())]),
+            }
         }
         ResolverFunctionCall::AddrMultichain(namehash, coin_type) => {
-            Ok([Token::String("Hello World".to_string())])
+            // Ok([Token::String("Hello World".to_string())])
+            Err(ResolveError::NotFound())
         }
         _ => Err(ResolveError::UnknownResolverFunction()),
     }?;
