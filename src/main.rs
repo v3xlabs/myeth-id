@@ -172,14 +172,14 @@ async fn handle_ccip(
         // signature_data = hexConcat([sig.r, sig._vs])
         // result, valid until, signature_data
 
-        let result = "0x225f137127d9067788314bc7fcc1f36746a3c3B5"
-            .as_bytes()
-            .to_vec();
+        let address = H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap();
+        let result = ethers::abi::encode(&[Token::Address(address)]);
 
         let expires: u64 = 1693140299;
         let expires: U256 = expires.into();
 
-        let payload_data_bytes = hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
+        let payload_data_bytes =
+            hex::decode(request_payload.data.strip_prefix("0x").unwrap()).unwrap();
 
         let request_hash = ethers::utils::keccak256(payload_data_bytes).to_vec();
         let result_hash = ethers::utils::keccak256(&result).to_vec();
@@ -204,7 +204,15 @@ async fn handle_ccip(
         let signature = wallet.sign_hash(payload_hash.into()).unwrap();
 
         // TODO: Figure out hexConcat, (to_string atm)
-        let signature = signature.to_string().as_bytes().to_vec();
+        let signature_r = format!("{:02x}", signature.r);
+        let signature_s = format!("{:02x}", signature.s);
+        let signature_v = format!("{:02x}", signature.v);
+
+        info!(signature_r = ?signature_r, signature_s = ?signature_s, signature_v = ?signature_v, "Signature");
+
+        let signature = hex::decode(format!("{}{}{}", signature_r, signature_s, signature_v))
+            .unwrap()
+            .to_vec();
 
         let data = vec![
             Token::Bytes(result),
