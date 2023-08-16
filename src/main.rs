@@ -4,10 +4,10 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use log::error;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
-use tracing::info;
 
 mod resolve;
 mod resolver;
@@ -45,11 +45,8 @@ async fn handle_ccip(
     match resolve::resolve(request_payload) {
         Ok(x) => (StatusCode::OK, Json(x)),
         Err(e) => {
-            info!("Error: {:?}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ResolveCCIPPostResponse::default()),
-            )
+            error!("Error: {:?}", e);
+            (e.into(), Json(ResolveCCIPPostResponse::default()))
         }
     }
 }

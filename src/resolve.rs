@@ -82,6 +82,19 @@ pub enum ResolveError {
     UnknownResolverFunction(),
     ABIDecode(),
     DNSDecode(),
+    NotFound(),
+}
+
+impl From<ResolveError> for StatusCode {
+    fn from(val: ResolveError) -> Self {
+        match val {
+            ResolveError::UnknownFunction() => StatusCode::NOT_IMPLEMENTED,
+            ResolveError::UnknownResolverFunction() => StatusCode::NOT_IMPLEMENTED,
+            ResolveError::ABIDecode() => StatusCode::BAD_REQUEST,
+            ResolveError::DNSDecode() => StatusCode::BAD_REQUEST,
+            ResolveError::NotFound() => StatusCode::NOT_FOUND,
+        }
+    }
 }
 
 pub fn resolve(
@@ -115,52 +128,32 @@ pub fn resolve(
     // This payload contains an abi encoded with selector payload, the first few bytes include the function selector
     let rest_of_the_data = result[1].clone().into_bytes().unwrap();
 
-    let function_selector: &[u8; 4] = &rest_of_the_data[0..4].try_into().unwrap();
+    let call = ResolverFunctionCall::try_from(rest_of_the_data.as_slice()).unwrap();
 
-    let call = ResolverFunctionCall::try_from(function_selector).unwrap();
+    let result = match call {
+        ResolverFunctionCall::Addr(namehash) => {
+            info!(namehash = ?namehash, "Namehash");
 
-    info!(call = ?call, "Function call");
+            let reply = H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap();
 
-    // get the rest of data except for the first 4 bytes
-    let payload = rest_of_the_data[4..].to_vec();
+            Ok([Token::Address(reply)])
+        }
+        ResolverFunctionCall::Text(namehash, record) => {
+            info!(namehash = ?namehash, record = ?record, "Namehash & Record");
 
-    if call == ResolverFunctionCall::addr {
-        info!("ADDR Call");
+            Ok([Token::String("Hello World".to_string())])
+        }
+        ResolverFunctionCall::AddrMultichain(namehash, coin_type) => {
+            Ok([Token::String("Hello World".to_string())])
+        }
+        _ => Err(ResolveError::UnknownResolverFunction()),
+    }?;
 
-        let result = ethers::abi::decode(&[ParamType::FixedBytes(32)], &payload).unwrap();
-        let namehash = result[0].clone().into_fixed_bytes().unwrap();
-
-        info!(namehash = ?namehash, "Namehash");
-
-        let data = magic_data(
-            ethers::abi::encode(&[Token::Address(
-                H160::from_str("0x225f137127d9067788314bc7fcc1f36746a3c3B5").unwrap(),
-            )]),
+    Ok(ResolveCCIPPostResponse {
+        data: magic_data(
+            ethers::abi::encode(&result),
             &H160::from_str(request_payload.sender.as_str()).unwrap(),
             request_payload.data,
-        );
-
-        return Ok(ResolveCCIPPostResponse { data });
-    }
-
-    if call == ResolverFunctionCall::text {
-        info!("CONTENT Call");
-
-        let result =
-            ethers::abi::decode(&[ParamType::FixedBytes(32), ParamType::String], &payload).unwrap();
-        let namehash = result[0].clone().into_fixed_bytes().unwrap();
-        let record = result[1].clone().into_string().unwrap();
-
-        info!(namehash = ?namehash, record = ?record, "Namehash & Record");
-
-        let data = magic_data(
-            ethers::abi::encode(&[Token::String("Hello World".to_string())]),
-            &H160::from_str(request_payload.sender.as_str()).unwrap(),
-            request_payload.data,
-        );
-
-        return Ok(ResolveCCIPPostResponse { data });
-    }
-
-    Err(ResolveError::UnknownResolverFunction())
+        ),
+    })
 }

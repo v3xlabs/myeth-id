@@ -1,8 +1,3 @@
-#[derive(Debug)]
-pub enum DNSDecodeError {
-    Happened,
-}
-
 pub fn decode(name: &str) -> String {
     let mut labels: Vec<&str> = Vec::new();
     let mut idx = 0;
