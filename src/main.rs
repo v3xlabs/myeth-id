@@ -1,6 +1,7 @@
 use axum::{
     extract::Path,
-    http::StatusCode,
+    http::{header::CONTENT_TYPE, HeaderMap, StatusCode},
+    response::{AppendHeaders, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -8,6 +9,7 @@ use log::error;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
+use tracing::info;
 
 mod resolve;
 mod resolver;
@@ -22,6 +24,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/gateway/:sender", post(handle_ccip))
+        .route("/test/image", get(handle_test_image))
         .layer(CorsLayer::very_permissive());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
@@ -49,6 +52,12 @@ async fn handle_ccip(
             (e.into(), Json(ResolveCCIPPostResponse::default()))
         }
     }
+}
+
+async fn handle_test_image(headers: HeaderMap) -> &'static str {
+    info!("Received request from {:?}", headers);
+
+    ""
 }
 
 #[derive(Deserialize, Debug)]
