@@ -18,7 +18,7 @@ fn magic_data(value: Vec<u8>, sender: &H160, request_payload: String) -> String 
 
     let request_payload = hex::decode(request_payload.trim_start_matches("0x")).unwrap();
 
-    let expires: u64 = 1693140299;
+    let expires: u64 = 1703980800;
 
     let request_hash = keccak256(request_payload).to_vec();
     let result_hash = keccak256(&result).to_vec();
